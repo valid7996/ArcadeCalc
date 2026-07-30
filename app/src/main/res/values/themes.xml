@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.ArcadeCalc" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- حذف اکشن بار و تنظیم رنگ وضعیت -->
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">#060610</item>
+        <item name="android:navigationBarColor">#060610</item>
+    </style>
+</resources>
