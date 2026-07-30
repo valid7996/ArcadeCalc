@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ماشین حساب آرکید</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Vazirmatn:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #060610;
+            --calc-bg: #0e0e1c;
+            --display-bg: #080812;
+            --neon-green: #00ff88;
+            --neon-green-dim: #00cc6a;
+            --neon-pink: #ff0066;
+            --neon-yellow: #ffe600;
+            --neon-cyan: #00e5ff;
+            --neon-orange: #ff8800;
+            --neon-purple: #bb44ff;
+            --btn-dark: #161630;
+            --btn-dark-hover: #20204a;
+            --btn-op: #2a1040;
+            --text: #e0e0e0;
+            --panel-bg: #0b0b18;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            background:var(--bg);min-height:100vh;
+            display:flex;align-items:center;justify-content:center;
+            font-family:'Vazirmatn',sans-serif;overflow-x:hidden;overflow-y:auto;position:relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .bg-grid{
+            position:fixed;inset:0;
+            background-image:linear-gradient(rgba(0,255,136,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,0.025) 1px,transparent 1px);
+            background-size:40px 40px;animation:gridMove 10s linear infinite;z-index:0;
+        }
+        @keyframes gridMove{0%{transform:translate(0,0)}100%{transform:translate(40px,40px)}}
+        .bg-glow{position:fixed;width:500px;height:500px;border-radius:50%;filter:blur(160px);opacity:0.12;z-index:0;animation:glowPulse 7s ease-in-out infinite alternate;}
+        .bg-glow.g1{background:var(--neon-green);top:-200px;right:-100px;}
+        .bg-glow.g2{background:var(--neon-pink);bottom:-200px;left:-100px;animation-delay:-3.5s;}
+        @keyframes glowPulse{0%{opacity:0.08;transform:scale(1)}100%{opacity:0.16;transform:scale(1.2)}}
+
+        #particleCanvas{position:fixed;inset:0;z-index:10;pointer-events:none;}
+        #flashOverlay{position:fixed;inset:0;background:var(--neon-green);opacity:0;z-index:9;pointer-events:none;transition:opacity 0.05s;}
+        .combo-popup{position:fixed;top:25%;left:50%;transform:translate(-50%,-50%);font-family:'Press Start 2P',monospace;font-size:28px;color:var(--neon-yellow);text-shadow:0 0 20px rgba(255,230,0,0.8),0 0 40px rgba(255,230,0,0.4);z-index:20;pointer-events:none;opacity:0;}
+        .combo-popup.show{animation:comboPopup 1s cubic-bezier(0.34,1.56,0.64,1) forwards;}
+        @keyframes comboPopup{0%{opacity:0;transform:translate(-50%,-50%) scale(0.3) rotate(-10deg)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(3deg)}60%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}100%{opacity:0;transform:translate(-50%,-60%) scale(0.8)}}
+
+        .app-wrapper{position:relative;z-index:5;display:flex;gap:16px;align-items:stretch;padding:20px 0;}
+
+        .calculator{
+            width:370px;background:var(--calc-bg);border-radius:24px;
+            border:1px solid rgba(0,255,136,0.12);
+            box-shadow:0 0 40px rgba(0,255,136,0.06),0 0 80px rgba(0,255,136,0.03),inset 0 1px 0 rgba(255,255,255,0.04);
+            padding:20px;display:flex;flex-direction:column;gap:14px;overflow:hidden;flex-shrink: 0;
+        }
+        .arcade-strip{display:flex;gap:4px;padding:8px 12px;background:rgba(0,0,0,0.4);border-radius:10px;border:1px solid rgba(0,255,136,0.08);align-items:center;}
+        .arcade-dot{width:7px;height:7px;border-radius:50%;animation:dotBlink 2s ease-in-out infinite;flex-shrink:0;}
+        .arcade-dot:nth-child(1){background:var(--neon-pink);animation-delay:0s}
+        .arcade-dot:nth-child(2){background:var(--neon-yellow);animation-delay:0.3s}
+        .arcade-dot:nth-child(3){background:var(--neon-green);animation-delay:0.6s}
+        .arcade-dot:nth-child(4){background:var(--neon-cyan);animation-delay:0.9s}
+        .arcade-dot:nth-child(5){background:var(--neon-orange);animation-delay:1.2s}
+        @keyframes dotBlink{0%,100%{opacity:0.4;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+        .arcade-title{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--neon-green);margin-right:auto;letter-spacing:1px;opacity:0.6;}
+
+        .display{background:var(--display-bg);border-radius:14px;padding:16px 20px;border:1px solid rgba(0,255,136,0.08);position:relative;min-height:100px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;}
+        .display::before{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:linear-gradient(to bottom,rgba(0,255,136,0.015),transparent);pointer-events:none;}
+        .display::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none;border-radius:14px;}
+        .display-expression{font-family:'Press Start 2P',monospace;font-size:9px;color:rgba(0,255,136,0.35);text-align:left;direction:ltr;margin-bottom:6px;min-height:14px;overflow-x:auto;white-space:nowrap;}
+        .display-value{font-family:'Press Start 2P',monospace;font-size:26px;color:var(--neon-green);text-align:left;direction:ltr;text-shadow:0 0 10px rgba(0,255,136,0.5),0 0 30px rgba(0,255,136,0.25);transition:transform 0.1s,opacity 0.1s;word-break:break-all;line-height:1.4;}
+        .display-value.exploding{transform:scale(1.1);opacity:0;}
+        .display-value.appearing{animation:resultAppear 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;}
+        @keyframes resultAppear{0%{transform:scale(2);opacity:0;filter:blur(8px)}60%{transform:scale(0.95);opacity:1;filter:blur(0)}100%{transform:scale(1);opacity:1;filter:blur(0)}}
+
+        .buttons-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+        .btn{font-family:'Press Start 2P',monospace;font-size:13px;border:none;border-radius:12px;padding:14px 6px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;color:var(--text);}
+        .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,0.06),transparent);pointer-events:none;border-radius:12px;}
+        .btn-number{background:var(--btn-dark);border:1px solid rgba(255,255,255,0.04);}
+        .btn-number:hover{background:var(--btn-dark-hover);border-color:rgba(0,255,136,0.15);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+        .btn-number:active{transform:translateY(1px) scale(0.97);}
+        .btn-op{background:var(--btn-op);border:1px solid rgba(255,0,102,0.12);color:var(--neon-pink);}
+        .btn-op:hover{background:#351848;border-color:rgba(255,0,102,0.35);transform:translateY(-2px);box-shadow:0 4px 12px rgba(255,0,102,0.12);}
+        .btn-op:active{transform:translateY(1px) scale(0.97);}
+        .btn-op.active-op{background:rgba(255,0,102,0.18);border-color:var(--neon-pink);box-shadow:0 0 12px rgba(255,0,102,0.25);}
+        .btn-sci{background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.12);color:var(--neon-cyan);font-size:10px;}
+        .btn-sci:hover{background:rgba(0,229,255,0.15);border-color:rgba(0,229,255,0.3);transform:translateY(-2px);}
+        .btn-sci:active{transform:translateY(1px) scale(0.97);}
+        .btn-clear{background:rgba(255,0,102,0.08);border:1px solid rgba(255,0,102,0.15);color:var(--neon-pink);}
+        .btn-clear:hover{background:rgba(255,0,102,0.18);border-color:var(--neon-pink);transform:translateY(-2px);}
+        .btn-equals{background:linear-gradient(135deg,var(--neon-green),var(--neon-green-dim));border:none;color:#000;font-weight:bold;box-shadow:0 0 18px rgba(0,255,136,0.15);}
+        .btn-equals:hover{transform:translateY(-2px);box-shadow:0 0 28px rgba(0,255,136,0.35),0 4px 12px rgba(0,0,0,0.3);}
+        .btn-equals:active{transform:translateY(1px) scale(0.97);}
+        .btn-wide{grid-column:span 2;}
+        .btn-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);transform:scale(0);animation:ripple 0.5s ease-out;pointer-events:none;}
+        @keyframes ripple{to{transform:scale(3);opacity:0}}
+
+        .sci-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
+        .sci-row .btn{padding:10px 4px;font-size:9px;}
+
+        .score-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(0,0,0,0.25);border-radius:10px;border:1px solid rgba(0,255,136,0.06);}
+        .score-label{font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(0,255,136,0.4);letter-spacing:1px;}
+        .score-value{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--neon-yellow);text-shadow:0 0 6px rgba(255,230,0,0.3);}
+        .combo-indicator{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--neon-cyan);text-shadow:0 0 6px rgba(0,229,255,0.3);opacity:0;transition:opacity 0.3s;}
+        .combo-indicator.visible{opacity:1;animation:comboPulse 0.5s ease;}
+        @keyframes comboPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+
+        .history-panel{
+            width:280px;background:var(--panel-bg);border-radius:24px;
+            border:1px solid rgba(0,229,255,0.1);
+            box-shadow:0 0 30px rgba(0,229,255,0.04),inset 0 1px 0 rgba(255,255,255,0.03);
+            padding:18px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
+            max-height:640px;
+        }
+        .history-header{display:flex;align-items:center;justify-content:space-between;}
+        .history-title{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--neon-cyan);letter-spacing:1px;text-shadow:0 0 8px rgba(0,229,255,0.3);}
+        .history-clear-btn{background:none;border:1px solid rgba(255,0,102,0.2);color:var(--neon-pink);font-family:'Press Start 2P',monospace;font-size:6px;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all 0.2s;}
+        .history-clear-btn:hover{background:rgba(255,0,102,0.15);border-color:var(--neon-pink);}
+
+        .history-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px;}
+        .history-list::-webkit-scrollbar{width:4px;}
+        .history-list::-webkit-scrollbar-track{background:transparent;}
+        .history-list::-webkit-scrollbar-thumb{background:rgba(0,229,255,0.2);border-radius:4px;}
+
+        .history-item{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.08);border-radius:12px;padding:12px;transition:all 0.2s;position:relative;animation:histSlideIn 0.3s ease;}
+        @keyframes histSlideIn{0%{opacity:0;transform:translateX(20px)}100%{opacity:1;transform:translateX(0)}}
+        .history-item:hover{border-color:rgba(0,229,255,0.2);background:rgba(0,229,255,0.07);}
+        .history-item.editing{border-color:var(--neon-yellow);background:rgba(255,230,0,0.06);box-shadow:0 0 15px rgba(255,230,0,0.1);}
+
+        .history-expr{font-family:'Press Start 2P',monospace;font-size:8px;color:rgba(0,229,255,0.5);direction:ltr;text-align:left;margin-bottom:6px;word-break:break-all;}
+        .history-result{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--neon-cyan);direction:ltr;text-align:left;text-shadow:0 0 8px rgba(0,229,255,0.3);}
+        .history-actions{display:flex;gap:6px;margin-top:8px;direction:ltr;}
+        .hist-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'Press Start 2P',monospace;font-size:6px;padding:5px 8px;border-radius:6px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:4px;}
+        .hist-btn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.15);}
+        .hist-btn.edit-btn{border-color:rgba(255,230,0,0.2);color:var(--neon-yellow);}
+        .hist-btn.edit-btn:hover{background:rgba(255,230,0,0.12);border-color:var(--neon-yellow);}
+        .hist-btn.use-btn{border-color:rgba(0,255,136,0.2);color:var(--neon-green);}
+        .hist-btn.use-btn:hover{background:rgba(0,255,136,0.1);border-color:var(--neon-green);}
+        .hist-btn.del-btn{border-color:rgba(255,0,102,0.2);color:var(--neon-pink);}
+        .hist-btn.del-btn:hover{background:rgba(255,0,102,0.1);border-color:var(--neon-pink);}
+
+        .edit-row{display:flex;gap:6px;margin-top:8px;align-items:center;direction:ltr;}
+        .edit-input{flex:1;background:rgba(0,0,0,0.4);border:1px solid var(--neon-yellow);border-radius:6px;padding:6px 8px;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-yellow);outline:none;direction:ltr;text-shadow:0 0 6px rgba(255,230,0,0.3);}
+        .edit-save{background:var(--neon-yellow);border:none;color:#000;font-family:'Press Start 2P',monospace;font-size:7px;padding:6px 10px;border-radius:6px;cursor:pointer;font-weight:bold;}
+        .edit-save:hover{box-shadow:0 0 10px rgba(255,230,0,0.4);}
+        .edit-cancel{background:none;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-family:'Press Start 2P',monospace;font-size:7px;padding:6px 10px;border-radius:6px;cursor:pointer;}
+        .edit-cancel:hover{border-color:rgba(255,255,255,0.3);}
+
+        .history-empty{font-family:'Press Start 2P',monospace;font-size:7px;color:rgba(255,255,255,0.15);text-align:center;padding:40px 10px;line-height:2;}
+
+        .credit{font-family:'Press Start 2P',monospace;font-size:8px;color:rgba(0,255,136,0.3);letter-spacing:1px;text-align:center;animation:creditGlow 3s ease-in-out infinite alternate;position:relative;z-index:5;margin-top:14px;}
+        .credit span{color:rgba(0,229,255,0.5);text-shadow:0 0 6px rgba(0,229,255,0.2);}
+        @keyframes creditGlow{0%{opacity:0.35}100%{opacity:0.7}}
+
+        .btn:focus-visible{outline:2px solid var(--neon-green);outline-offset:2px;}
+
+        @media(max-width:720px){
+            .app-wrapper{flex-direction:column;align-items:center;max-height:none;overflow-y:auto;padding:16px 0;}
+            .calculator{width:95vw;max-width:370px;}
+            .history-panel{width:95vw;max-width:370px;max-height:300px;}
+        }
+        @media(max-width:400px){
+            .calculator{padding:14px;}
+            .btn{padding:12px 4px;font-size:11px;}
+            .sci-row .btn{padding:8px 2px;font-size:8px;}
+            .display-value{font-size:20px;}
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow g1"></div>
+    <div class="bg-glow g2"></div>
+    <canvas id="particleCanvas"></canvas>
+    <div id="flashOverlay"></div>
+    <div class="combo-popup" id="comboPopup"></div>
+
+    <div style="display:flex;flex-direction:column;align-items:center;">
+        <div class="app-wrapper">
+            <div class="calculator" role="application" aria-label="ماشین حساب آرکید">
+                <div class="arcade-strip">
+                    <div class="arcade-dot"></div><div class="arcade-dot"></div><div class="arcade-dot"></div><div class="arcade-dot"></div><div class="arcade-dot"></div>
+                    <span class="arcade-title">ARCADE CALC PRO</span>
+                </div>
+                <div class="display" id="display">
+                    <div class="display-expression" id="expression"></div>
+                    <div class="display-value" id="displayValue">0</div>
+                </div>
+                <div class="sci-row">
+                    <button class="btn btn-sci" data-action="sci" data-fn="sin">SIN</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="cos">COS</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="tan">TAN</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="log">LOG</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="ln">LN</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="sqrt">SQRT</button>
+                </div>
+                <div class="sci-row">
+                    <button class="btn btn-sci" data-action="sci" data-fn="pow2">x²</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="pow3">x³</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="inv">1/x</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="fact">n!</button>
+                    <button class="btn btn-sci" data-action="sci" data-fn="abs">|x|</button>
+                    <button class="btn btn-sci" data-action="pow" data-op="**">x^y</button>
+                </div>
+                <div class="buttons-grid">
+                    <button class="btn btn-clear" data-action="clear">AC</button>
+                    <button class="btn btn-clear" data-action="backspace"><i class="fas fa-delete-left"></i></button>
+                    <button class="btn btn-op" data-action="percent">%</button>
+                    <button class="btn btn-op" data-action="operator" data-op="/">&divide;</button>
+                    <button class="btn btn-number" data-action="number" data-num="7">7</button>
+                    <button class="btn btn-number" data-action="number" data-num="8">8</button>
+                    <button class="btn btn-number" data-action="number" data-num="9">9</button>
+                    <button class="btn btn-op" data-action="operator" data-op="*">&times;</button>
+                    <button class="btn btn-number" data-action="number" data-num="4">4</button>
+                    <button class="btn btn-number" data-action="number" data-num="5">5</button>
+                    <button class="btn btn-number" data-action="number" data-num="6">6</button>
+                    <button class="btn btn-op" data-action="operator" data-op="-">&minus;</button>
+                    <button class="btn btn-number" data-action="number" data-num="1">1</button>
+                    <button class="btn btn-number" data-action="number" data-num="2">2</button>
+                    <button class="btn btn-number" data-action="number" data-num="3">3</button>
+                    <button class="btn btn-op" data-action="operator" data-op="+">+</button>
+                    <button class="btn btn-number btn-wide" data-action="negate">+/-</button>
+                    <button class="btn btn-number" data-action="decimal">.</button>
+                    <button class="btn btn-equals" data-action="equals">=</button>
+                </div>
+                <div class="score-bar">
+                    <div><div class="score-label">SCORE</div><div class="score-value" id="scoreValue">0</div></div>
+                    <div class="combo-indicator" id="comboIndicator">COMBO x1</div>
+                    <div style="text-align:left;"><div class="score-label">CALCS</div><div class="score-value" id="calcCount">0</div></div>
+                </div>
+            </div>
+
+            <div class="history-panel">
+                <div class="history-header">
+                    <span class="history-title"><i class="fas fa-clock-rotate-left" style="margin-left:6px;"></i>HISTORY</span>
+                    <button class="history-clear-btn" id="clearHistory"><i class="fas fa-trash"></i> CLEAR</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">هیچ محاسبه‌ای<br>ثبت نشده</div>
+                </div>
+            </div>
+        </div>
+        <div class="credit">ساخته شده توسط <span>valid_bv</span></div>
+    </div>
+
+    <script>
+        class ArcadeAudio {
+            constructor() { this.ctx = null; this.initialized = false; }
+            init() { if (this.initialized) return; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.initialized = true; } catch(e) {} }
+            _osc(type, freq, dur, vol = 0.08, freqEnd = null) {
+                if (!this.ctx) return;
+                const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                o.connect(g); g.connect(this.ctx.destination); o.type = type;
+                const t = this.ctx.currentTime;
+                o.frequency.setValueAtTime(freq, t);
+                if (freqEnd) o.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), t + dur);
+                g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+                o.start(t); o.stop(t + dur);
+            }
+            buttonClick() { this._osc('square', 800, 0.06, 0.06, 400); }
+            operatorSound() {
+                if (!this.ctx) return; const t = this.ctx.currentTime;
+                const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                o.connect(g); g.connect(this.ctx.destination); o.type = 'square';
+                o.frequency.setValueAtTime(500, t); o.frequency.setValueAtTime(700, t + 0.05);
+                g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                o.start(t); o.stop(t + 0.1);
+            }
+            clearSound() { this._osc('sawtooth', 600, 0.2, 0.05, 100); }
+            sciSound() {
+                if (!this.ctx) return; const t = this.ctx.currentTime;
+                [600, 900, 1200].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                    o.connect(g); g.connect(this.ctx.destination); o.type = 'triangle';
+                    const s = t + i * 0.04; o.frequency.setValueAtTime(f, s);
+                    g.gain.setValueAtTime(0.06, s); g.gain.exponentialRampToValueAtTime(0.001, s + 0.06);
+                    o.start(s); o.stop(s + 0.06);
+                });
+            }
+            explosionSound() {
+                if (!this.ctx) return; const t = this.ctx.currentTime;
+                const bs = this.ctx.sampleRate * 0.4, buf = this.ctx.createBuffer(1, bs, this.ctx.sampleRate), d = buf.getChannelData(0);
+                for (let i = 0; i < bs; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bs, 3);
+                const n = this.ctx.createBufferSource(); n.buffer = buf; const ng = this.ctx.createGain();
+                ng.gain.setValueAtTime(0.12, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                n.connect(ng); ng.connect(this.ctx.destination); n.start(t); n.stop(t + 0.4);
+                [880, 660, 440, 330, 220, 110].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                    o.connect(g); g.connect(this.ctx.destination); o.type = 'square';
+                    const s = t + i * 0.05; o.frequency.setValueAtTime(f, s);
+                    g.gain.setValueAtTime(0.08, s); g.gain.exponentialRampToValueAtTime(0.001, s + 0.06);
+                    o.start(s); o.stop(s + 0.06);
+                });
+                this._osc('sine', 80, 0.3, 0.15, 30);
+            }
+            resultSound() {
+                if (!this.ctx) return; const t = this.ctx.currentTime;
+                [523, 659, 784, 1047].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                    o.connect(g); g.connect(this.ctx.destination); o.type = 'square';
+                    const s = t + i * 0.08; o.frequency.setValueAtTime(f, s);
+                    g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.07, s + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, s + 0.15);
+                    o.start(s); o.stop(s + 0.15);
+                });
+            }
+            comboSound(lvl) {
+                if (!this.ctx) return; const t = this.ctx.currentTime, bf = 440 + lvl * 100;
+                for (let i = 0; i < lvl + 2; i++) {
+                    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                    o.connect(g); g.connect(this.ctx.destination); o.type = 'square';
+                    const s = t + i * 0.06; o.frequency.setValueAtTime(bf + i * 150, s);
+                    g.gain.setValueAtTime(0.06, s); g.gain.exponentialRampToValueAtTime(0.001, s + 0.08);
+                    o.start(s); o.stop(s + 0.08);
+                }
+            }
+            editSound() { this._osc('triangle', 1000, 0.08, 0.06, 1400); }
+            deleteHistSound() { this._osc('sawtooth', 400, 0.15, 0.04, 80); }
+        }
+        const audio = new ArcadeAudio();
+
+        const canvas = document.getElementById('particleCanvas');
+        const ctxP = canvas.getContext('2d');
+        let particles = [], animFrame;
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+
+        const neonColors = ['#00ff88','#00ffaa','#00ffcc','#00e5ff','#ff0066','#ff3388','#ffe600','#ff8800','#88ff00','#00ff00'];
+
+        class PixelParticle {
+            constructor(x, y, color, size) {
+                this.x = x; this.y = y; this.color = color; this.size = size || (Math.random() * 6 + 3);
+                const a = Math.random() * Math.PI * 2, s = Math.random() * 12 + 4;
+                this.vx = Math.cos(a) * s; this.vy = Math.sin(a) * s - 3;
+                this.gravity = 0.25; this.friction = 0.98; this.life = 1; this.decay = Math.random() * 0.015 + 0.008;
+                this.rotation = Math.random() * Math.PI * 2; this.rotSpeed = (Math.random() - 0.5) * 0.3;
+                this.aspect = Math.random() > 0.5 ? 1 : (Math.random() * 0.5 + 0.5);
+            }
+            update() { this.vx *= this.friction; this.vy *= this.friction; this.vy += this.gravity; this.x += this.vx; this.y += this.vy; this.life -= this.decay; this.rotation += this.rotSpeed; }
+            draw(c) {
+                if (this.life <= 0) return; c.save(); c.translate(this.x, this.y); c.rotate(this.rotation);
+                c.globalAlpha = Math.max(0, this.life); c.shadowColor = this.color; c.shadowBlur = 10 * this.life; c.fillStyle = this.color;
+                const w = this.size, h = this.size * this.aspect; c.fillRect(-w/2, -h/2, w, h);
+                c.shadowBlur = 0; c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(-w/4, -h/4, w/2, h/2); c.restore();
+            }
+        }
+        class TrailParticle {
+            constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.size = Math.random() * 3 + 1; this.life = 1; this.decay = Math.random() * 0.03 + 0.02; this.vy = Math.random() + 0.5; }
+            update() { this.y += this.vy; this.life -= this.decay; }
+            draw(c) { if (this.life <= 0) return; c.globalAlpha = this.life * 0.5; c.fillStyle = this.color; c.shadowColor = this.color; c.shadowBlur = 5; c.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size); c.shadowBlur = 0; }
+        }
+        function animateParticles() {
+            ctxP.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(ctxP); if (particles[i].life <= 0) particles.splice(i, 1); }
+            ctxP.globalAlpha = 1; ctxP.shadowBlur = 0;
+            if (particles.length > 0) animFrame = requestAnimationFrame(animateParticles); else animFrame = null;
+        }
+        function startParticleLoop() { if (!animFrame) animFrame = requestAnimationFrame(animateParticles); }
+        function explodeText(text, cx, cy) {
+            const count = Math.max(40, text.length * 20);
+            for (let i = 0; i < count; i++) particles.push(new PixelParticle(cx + (Math.random()-0.5)*200, cy + (Math.random()-0.5)*60, neonColors[Math.floor(Math.random()*neonColors.length)]));
+            for (let i = 0; i < 15; i++) particles.push(new TrailParticle(cx + (Math.random()-0.5)*250, cy + (Math.random()-0.5)*80, neonColors[Math.floor(Math.random()*neonColors.length)]));
+            startParticleLoop();
+        }
+        function celebrateExplosion() {
+            const cx = canvas.width/2, cy = canvas.height/2;
+            for (let i = 0; i < 60; i++) {
+                const a = (i/60)*Math.PI*2, p = new PixelParticle(cx+Math.cos(a)*Math.random()*100, cy+Math.sin(a)*Math.random()*100, neonColors[Math.floor(Math.random()*neonColors.length)], Math.random()*8+4);
+                const s = Math.random()*14+5; p.vx = Math.cos(a)*s; p.vy = Math.sin(a)*s-5; particles.push(p);
+            }
+            startParticleLoop();
+        }
+        function flashScreen() { const f = document.getElementById('flashOverlay'); f.style.opacity = '0.12'; setTimeout(() => f.style.opacity = '0', 80); }
+
+        let currentValue = '0', previousValue = '', operator = null, shouldResetDisplay = false, expressionText = '';
+        let score = 0, combo = 0, calcTotal = 0, lastCalcTime = 0, history = [];
+        const displayValue = document.getElementById('displayValue');
+        const expressionEl = document.getElementById('expression');
+        const scoreEl = document.getElementById('scoreValue');
+        const calcCountEl = document.getElementById('calcCount');
+        const comboIndicator = document.getElementById('comboIndicator');
+        const comboPopup = document.getElementById('comboPopup');
+        const historyList = document.getElementById('historyList');
+
+        function formatNum(n) { if (typeof n !== 'number' || !isFinite(n)) return String(n); if (Number.isInteger(n)) return String(n); return parseFloat(n.toFixed(10)).toString(); }
+        function updateDisplay() { const len = currentValue.length; displayValue.style.fontSize = len > 14 ? '14px' : len > 11 ? '18px' : len > 8 ? '22px' : '26px'; displayValue.textContent = currentValue; expressionEl.textContent = expressionText; }
+        function addRipple(e, btn) { const r = document.createElement('span'); r.className = 'btn-ripple'; const rect = btn.getBoundingClientRect(), sz = Math.max(rect.width, rect.height); r.style.width = r.style.height = sz + 'px'; r.style.left = (e.clientX - rect.left - sz/2) + 'px'; r.style.top = (e.clientY - rect.top - sz/2) + 'px'; btn.appendChild(r); setTimeout(() => r.remove(), 500); }
+        function clearActiveOp() { document.querySelectorAll('.btn-op').forEach(b => b.classList.remove('active-op')); }
+
+        function handleNumber(num) { audio.init(); audio.buttonClick(); if (shouldResetDisplay) { currentValue = num; shouldResetDisplay = false; } else { if (currentValue === '0' && num !== '.') currentValue = num; else { if (currentValue.length >= 16) return; currentValue += num; } } updateDisplay(); }
+        function handleDecimal() { audio.init(); audio.buttonClick(); if (shouldResetDisplay) { currentValue = '0.'; shouldResetDisplay = false; } else if (!currentValue.includes('.')) currentValue += '.'; updateDisplay(); }
+        function handleNegate() { audio.init(); audio.buttonClick(); if (currentValue === '0' || currentValue === 'خطا') return; currentValue = currentValue.startsWith('-') ? currentValue.slice(1) : '-' + currentValue; updateDisplay(); }
+        function handleOperator(op) { audio.init(); audio.operatorSound(); clearActiveOp(); const opBtn = document.querySelector(`[data-op="${op}"]`); if (opBtn) opBtn.classList.add('active-op'); if (operator && !shouldResetDisplay) calculate(false); previousValue = currentValue; operator = op; const sym = {'+':' + ','-':' − ','*':' × ','/':' ÷ ','**':' ^ '}[op] || op; expressionText = previousValue + sym; shouldResetDisplay = true; updateDisplay(); }
+        function handlePercent() { audio.init(); audio.operatorSound(); const v = parseFloat(currentValue); if (!isNaN(v)) { currentValue = formatNum(v / 100); updateDisplay(); } }
+        function handleBackspace() { audio.init(); audio.buttonClick(); if (shouldResetDisplay) return; currentValue = currentValue.length > 1 ? currentValue.slice(0, -1) : '0'; updateDisplay(); }
+        function handleClear() { audio.init(); audio.clearSound(); currentValue = '0'; previousValue = ''; operator = null; shouldResetDisplay = false; expressionText = ''; combo = 0; comboIndicator.classList.remove('visible'); clearActiveOp(); updateDisplay(); }
+
+        function handleSci(fn) {
+            audio.init(); audio.sciSound(); const v = parseFloat(currentValue); if (isNaN(v)) return;
+            let result, label;
+            switch(fn) {
+                case 'sin': result = Math.sin(v * Math.PI / 180); label = `sin(${v})`; break;
+                case 'cos': result = Math.cos(v * Math.PI / 180); label = `cos(${v})`; break;
+                case 'tan': result = Math.tan(v * Math.PI / 180); if (!isFinite(result)) { currentValue = 'خطا'; updateDisplay(); return; } label = `tan(${v})`; break;
+                case 'log': if (v <= 0) { currentValue = 'خطا'; updateDisplay(); return; } result = Math.log10(v); label = `log(${v})`; break;
+                case 'ln': if (v <= 0) { currentValue = 'خطا'; updateDisplay(); return; } result = Math.log(v); label = `ln(${v})`; break;
+                case 'sqrt': if (v < 0) { currentValue = 'خطا'; updateDisplay(); return; } result = Math.sqrt(v); label = `√(${v})`; break;
+                case 'pow2': result = v * v; label = `(${v})²`; break;
+                case 'pow3': result = v * v * v; label = `(${v})³`; break;
+                case 'inv': if (v === 0) { currentValue = 'خطا'; updateDisplay(); return; } result = 1 / v; label = `1/(${v})`; break;
+                case 'fact': if (v < 0 || v > 170 || v !== Math.floor(v)) { currentValue = 'خطا'; updateDisplay(); return; } result = 1; for (let i = 2; i <= v; i++) result *= i; label = `${v}!`; break;
+                case 'abs': result = Math.abs(v); label = `|${v}|`; break;
+                default: return;
+            }
+            if (!label) label = `${fn}(${v})`; expressionText = label + ' =';
+            const rs = formatNum(result); const displayRect = document.getElementById('display').getBoundingClientRect();
+            displayValue.classList.add('exploding'); flashScreen();
+            explodeText(currentValue, displayRect.left + displayRect.width/2, displayRect.top + displayRect.height/2); audio.explosionSound();
+            setTimeout(() => { displayValue.classList.remove('exploding'); currentValue = rs; displayValue.textContent = currentValue; displayValue.classList.add('appearing'); audio.resultSound(); expressionEl.textContent = expressionText; const len = currentValue.length; displayValue.style.fontSize = len > 14 ? '14px' : len > 11 ? '18px' : len > 8 ? '22px' : '26px'; setTimeout(() => displayValue.classList.remove('appearing'), 500); }, 300);
+            addHistory(label, rs); shouldResetDisplay = true; clearActiveOp(); updateScore();
+        }
+
+        function calculate(withExplosion = true) {
+            if (!operator || previousValue === '') return;
+            const a = parseFloat(previousValue), b = parseFloat(currentValue); let result;
+            switch(operator) { case '+': result = a + b; break; case '-': result = a - b; break; case '*': result = a * b; break; case '/': if (b === 0) { result = 'خطا'; } else { result = a / b; } break; case '**': result = Math.pow(a, b); if (!isFinite(result)) result = 'خطا'; break; default: return; }
+            const resultStr = typeof result === 'number' ? formatNum(result) : result;
+            const sym = {'+':' + ','-':' − ','*':' × ','/':' ÷ ','**':' ^ '}[operator] || operator;
+            expressionText = previousValue + sym + currentValue + ' =';
+            if (withExplosion) {
+                const displayRect = document.getElementById('display').getBoundingClientRect(); const cx = displayRect.left + displayRect.width/2, cy = displayRect.top + displayRect.height/2;
+                displayValue.classList.add('exploding'); audio.explosionSound(); flashScreen(); explodeText(currentValue, cx, cy);
+                setTimeout(() => { displayValue.classList.remove('exploding'); currentValue = resultStr; displayValue.textContent = currentValue; displayValue.classList.add('appearing'); audio.resultSound(); const len = currentValue.length; displayValue.style.fontSize = len > 14 ? '14px' : len > 11 ? '18px' : len > 8 ? '22px' : '26px'; expressionEl.textContent = expressionText; if (result !== 'خطا' && typeof result === 'number' && Math.abs(result) > 1000) celebrateExplosion(); setTimeout(() => displayValue.classList.remove('appearing'), 500); }, 300);
+                addHistory(previousValue + sym + currentValue, resultStr); updateScore();
+            } else { currentValue = resultStr; updateDisplay(); }
+            previousValue = ''; operator = null; shouldResetDisplay = true; clearActiveOp();
+        }
+
+        function updateScore() {
+            const now = Date.now(); combo = (now - lastCalcTime < 3000 && lastCalcTime > 0) ? combo + 1 : 1; lastCalcTime = now;
+            const cm = Math.min(combo, 10), v = parseFloat(currentValue), bigBonus = (!isNaN(v) && Math.abs(v) > 1000) ? 200 : 0;
+            score += 100 * cm + bigBonus; calcTotal++; scoreEl.textContent = score.toLocaleString(); calcCountEl.textContent = calcTotal;
+            if (combo >= 2) { comboIndicator.textContent = `COMBO x${combo}`; comboIndicator.classList.remove('visible'); void comboIndicator.offsetWidth; comboIndicator.classList.add('visible'); audio.comboSound(combo); if (combo >= 3) { const msgs = ['NICE','GREAT','AWESOME','FANTASTIC','INCREDIBLE','UNSTOPPABLE','GODLIKE']; comboPopup.textContent = msgs[Math.min(combo - 3, msgs.length - 1)] + '!'; comboPopup.classList.remove('show'); void comboPopup.offsetWidth; comboPopup.classList.add('show'); } }
+        }
+
+        function addHistory(expr, result) { history.unshift({ id: Date.now(), expr, result, corrected: false }); if (history.length > 50) history.pop(); renderHistory(); }
+        function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function renderHistory() {
+            if (history.length === 0) { historyList.innerHTML = '<div class="history-empty">هیچ محاسبه‌ای<br>ثبت نشده</div>'; return; }
+            historyList.innerHTML = history.map(h => `<div class="history-item" data-id="${h.id}" id="hist-${h.id}"><div class="history-expr">${escapeHtml(h.expr)}</div><div class="history-result">= ${escapeHtml(h.result)}${h.corrected ? ' <span style="color:var(--neon-yellow);font-size:8px;">(تصحیح شده)</span>' : ''}</div><div class="history-actions"><button class="hist-btn use-btn" onclick="useResult(${h.id})"><i class="fas fa-arrow-left"></i> USE</button><button class="hist-btn edit-btn" onclick="startEdit(${h.id})"><i class="fas fa-pen"></i> FIX</button><button class="hist-btn del-btn" onclick="deleteHistory(${h.id})"><i class="fas fa-xmark"></i></button></div></div>`).join('');
+        }
+        function useResult(id) { audio.init(); audio.editSound(); const item = history.find(h => h.id === id); if (!item) return; currentValue = item.result; shouldResetDisplay = false; clearActiveOp(); updateDisplay(); }
+        function startEdit(id) {
+            audio.init(); audio.editSound(); const item = history.find(h => h.id === id); if (!item) return; const el = document.getElementById('hist-' + id); if (!el) return;
+            el.classList.add('editing'); el.querySelector('.history-actions').style.display = 'none';
+            const editDiv = document.createElement('div'); editDiv.className = 'edit-row';
+            editDiv.innerHTML = `<input type="text" class="edit-input" id="edit-input-${id}" value="${item.result}" dir="ltr" autocomplete="off"><button class="edit-save" onclick="saveEdit(${id})"><i class="fas fa-check"></i></button><button class="edit-cancel" onclick="cancelEdit(${id})"><i class="fas fa-xmark"></i></button>`;
+            el.appendChild(editDiv); const inp = document.getElementById('edit-input-' + id); inp.focus(); inp.select();
+            inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveEdit(id); if (e.key === 'Escape') cancelEdit(id); });
+        }
+        function saveEdit(id) { audio.init(); audio.resultSound(); const inp = document.getElementById('edit-input-' + id); if (!inp) return; const newVal = inp.value.trim(); if (newVal === '' || isNaN(parseFloat(newVal))) { inp.style.borderColor = 'var(--neon-pink)'; return; } const item = history.find(h => h.id === id); if (item) { item.result = newVal; item.corrected = true; } renderHistory(); }
+        function cancelEdit(id) { audio.init(); audio.deleteHistSound(); renderHistory(); }
+        function deleteHistory(id) { audio.init(); audio.deleteHistSound(); const el = document.getElementById('hist-' + id); if (el) { el.style.transition = 'all 0.3s'; el.style.opacity = '0'; el.style.transform = 'translateX(30px) scale(0.9)'; setTimeout(() => { history = history.filter(h => h.id !== id); renderHistory(); }, 300); } }
+        document.getElementById('clearHistory').addEventListener('click', () => { audio.init(); audio.clearSound(); history = []; renderHistory(); });
+
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', (e) => { addRipple(e, btn); const action = btn.dataset.action; switch(action) { case 'number': handleNumber(btn.dataset.num); break; case 'decimal': handleDecimal(); break; case 'negate': handleNegate(); break; case 'operator': handleOperator(btn.dataset.op); break; case 'pow': handleOperator(btn.dataset.op); break; case 'percent': handlePercent(); break; case 'backspace': handleBackspace(); break; case 'clear': handleClear(); break; case 'equals': calculate(true); break; case 'sci': handleSci(btn.dataset.fn); break; } });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.classList.contains('edit-input')) return;
+            const k = e.key;
+            if (k >= '0' && k <= '9') { handleNumber(k); highlightBtn(`[data-num="${k}"]`); }
+            else if (k === '.') { handleDecimal(); highlightBtn('[data-action="decimal"]'); }
+            else if (k === '+') handleOperator('+'); else if (k === '-') handleOperator('-');
+            else if (k === '*') handleOperator('*'); else if (k === '/') { e.preventDefault(); handleOperator('/'); }
+            else if (k === '^') handleOperator('**'); else if (k === '%') handlePercent();
+            else if (k === 'Enter' || k === '=') { e.preventDefault(); calculate(true); highlightBtn('[data-action="equals"]'); }
+            else if (k === 'Backspace') handleBackspace(); else if (k === 'Escape' || k === 'Delete') handleClear();
+        });
+        function highlightBtn(s) { const b = document.querySelector(s); if (b) { b.style.transform = 'scale(0.95)'; setTimeout(() => b.style.transform = '', 100); } }
+
+        function spawnAmbient() { if (particles.length < 15) { const p = new TrailParticle(Math.random() * canvas.width, canvas.height + 10, neonColors[Math.floor(Math.random()*neonColors.length)]); p.vy = -(Math.random()*1.5+0.5); p.decay = 0.004; p.size = Math.random()*2+1; particles.push(p); } startParticleLoop(); }
+        setInterval(spawnAmbient, 600);
+
+        updateDisplay(); renderHistory();
+    </script>
+</body>
+</html>
