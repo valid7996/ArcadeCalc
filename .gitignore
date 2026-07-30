@@ -1,0 +1,65 @@
+# ===== Android =====
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# ===== Keystore (مهم: هرگز keystore را کامیت نکنید) =====
+*.jks
+*.keystore
+keystore.properties
+release-keystore.jks
+
+# ===== Gradle =====
+.gradle/
+build/
+gradle-wrapper.jar
+
+# ===== APK / AAB فایل‌های خروجی =====
+*.apk
+*.aab
+*.ap_
+
+# ===== ProGuard =====
+proguard/
+
+# ===== Android Studio IDE فایل‌ها =====
+*.iws
+out/
+captures/
+.navigation/
+*.hprof
+.caches/
+_EXCLUDED/
+
+# ===== Kotlin =====
+*.kotlin_module
+
+# ===== MacOS =====
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ===== Windows =====
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===== Linux =====
+*~
+
+# ===== Node (اگر ابزار JS اضافه کردید) =====
+node_modules/
+npm-debug.log
+yarn-error.log
